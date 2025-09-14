@@ -1,5 +1,4 @@
 # GenAI_RAG_Eval
-# GenAI_RAG_Eval
 
 GenAI_RAG_Eval is a framework for evaluating **Generative AI** and **Retrieval-Augmented Generation (RAG)** applications.  
 It provides utilities, metrics, and workflows to test the quality, reliability, and performance of LLM-based systems that depend on external knowledge retrieval.
