@@ -27,11 +27,11 @@ def ask_question(user_prompt: str) -> str:
 refence_test_cases = [
     (
         "Where is India located?",
-        "Asia Continent"
+        "Asia"
     ),
     (
         "What are the main features of Java?",
-        "Object   Oriented"
+        "Object-Oriented"
     ),
 ]
 
