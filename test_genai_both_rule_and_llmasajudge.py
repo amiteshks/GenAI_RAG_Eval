@@ -34,8 +34,6 @@ refence_test_cases = [
         "Object-Oriented"
     ),
 ]
-
-
 @pytest.mark.parametrize("user_input,expected_keyword", refence_test_cases)
 def test_response_contains_expected_keyword(user_input, expected_keyword):
     response_from_llm = ask_question(user_input) #where is india located    

@@ -5,12 +5,8 @@ import pytest
 def addition(a, b):
     return a + b
 
-
 [(10, 5, 15), # a = 10, b = 5, expected = 15
- 
  (0, 0, 0)]  # a = 0, b = 0, expected = 0
-
-
 
 test_data = [(10, 5, 15),(0, 0, 0)]
 
