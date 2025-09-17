@@ -39,7 +39,7 @@ def ask_question(user_prompt) -> str:
 # --- Custom Evaluator ---
 def keyword_eval(run, example, **kwargs) -> EvaluationResult:
     """Checks if expected keyword is in model output."""
-    expected = example.inputs["expected"].lower()       # dataset expected
+    expected = example.outputs["expected"].lower()       # dataset expected
     actual = run.outputs["output"].lower()              # model run output
 
     success = expected in actual
@@ -53,7 +53,7 @@ def keyword_eval(run, example, **kwargs) -> EvaluationResult:
 def test_langsmith_experiment():
     results = evaluate(
         ask_question,              # function under test
-        "ds-2",                    # dataset name in LangSmith
+        data = "ds-downright-wholesaler-60",                    # dataset name in LangSmith
         evaluators=[keyword_eval],  # evaluators
         experiment_prefix="lansmith_eval_test",  # experiment name prefix
     )
