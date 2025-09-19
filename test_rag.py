@@ -2,23 +2,31 @@
 # pip install ragas datasets
 from datasets import Dataset
 from ragas import evaluate
-from ragas.metrics import faithfulness, context_precision, context_recall, answer_correctness
-
+from ragas.metrics import (
+    context_recall,
+    context_precision,
+    context_relevance,
+    faithfulness,
+    answer_relevance,
+    answer_correctness,
+    answer_similarity,
+    semantic_similarity,
+)
 
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from dotenv import load_dotenv
 from openai import OpenAI
-
 import os
 
+# --- Load API Key ---
 load_dotenv(override=True)
 my_api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=my_api_key)
 
 
+# --- Retriever: Get top-k docs ---
 def get_top_k_similar(query, k=3):
-    # Step 1: Define Sample Documents
     documents = [
         {"section": "Pay Policies", "content": "Employees are paid bi-weekly via direct deposit."},
         {"section": "Leave of Absence", "content": "Employees must submit a leave request for approval."},
@@ -26,57 +34,64 @@ def get_top_k_similar(query, k=3):
     ]
 
     texts = [doc["content"] for doc in documents]
-
-    # Step 2: Generate Embeddings using SentenceTransformers
     model = SentenceTransformer("all-MiniLM-L6-v2")
     doc_vectors = model.encode(texts, convert_to_tensor=True)
-
-    # Step 3: Encode the query
     query_vec = model.encode(query, convert_to_tensor=True)
 
-    # Step 4: Compute cosine similarities
     similarities = util.cos_sim(query_vec, doc_vectors)[0].cpu().numpy()
-
-    # Step 5: Get top-k indices (sorted by similarity, descending)
     top_k_idx = np.argsort(similarities)[::-1][:k]
 
-    # Step 6: Collect top documents
-    top_docs = [documents[int(idx)] for idx in top_k_idx]
-    return top_docs
+    return [documents[int(idx)] for idx in top_k_idx]
+
+
+# --- Generator: Use OpenAI with retrieved docs ---
+def generate_answer(query, contexts):
+    context_text = " ".join(contexts)
+    prompt = f"Answer the question based only on the following context:\n{context_text}\n\nQuestion: {query}\nAnswer:"
+    
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",  # or gpt-3.5-turbo
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=200,
+    )
+    return completion.choices[0].message.content.strip()
 
 
 # --- Build dataset for Ragas ---
 def build_dataset():
     query = "How often do employees get paid?"
     retrieved_docs = get_top_k_similar(query, 3)
+    contexts = [d["content"] for d in retrieved_docs]
 
+    # Gold reference
     gold_answer = "Employees are paid bi-weekly via direct deposit."
+
+    # Generate answer using LLM
+    model_answer = generate_answer(query, contexts)
 
     examples = [
         {
             "question": query,
-            "answer": gold_answer,  # system or gold answer
-            "contexts": [d["content"] for d in retrieved_docs],
-            "reference": gold_answer,    # gold reference (string)
-            "ground_truths": [gold_answer]  # list of valid gold answers
+            "answer": model_answer,        # LLM-generated answer
+            "contexts": contexts,         
+            "reference": gold_answer,     
+            "ground_truths": [gold_answer]
         }
     ]
     return Dataset.from_list(examples)
 
 
 if __name__ == "__main__":
-    query = "How often do employees get paid?"
-    top_docs = get_top_k_similar(query, 3)
     dataset = build_dataset()
-    results = evaluate(dataset, 
-                metrics=[context_precision, context_recall, faithfulness, answer_correctness])
+
+    # --- All metrics across retriever, generator, and end-to-end ---
+    all_metrics = [
+        context_recall, context_precision, context_relevance,   # Retriever
+        faithfulness, answer_relevance, answer_correctness, answer_similarity,  # Generator
+        semantic_similarity  # End-to-End
+    ]
+
+    results = evaluate(dataset, metrics=all_metrics)
+
+    print("\n🔹 Full RAG Evaluation Results")
     print(results)
-
-# def test_ragas_retriever_only():
-#     dataset = build_dataset()
-#     results = evaluate(dataset, metrics=[context_precision, context_recall])
-#     print(results)
-
-#     # Assert retrieval quality
-#     assert results["context_recall"] > 0.8
-#     assert results["context_precision"] > 0.5
